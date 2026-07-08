@@ -1,0 +1,63 @@
+# ============================================================
+# config.yaml — Personal Agent Configuration
+# ============================================================
+# Copy this file, fill in your values, and run:
+#   python main.py chat
+
+# ------------------------------------------------------------
+# Agent identity
+# ------------------------------------------------------------
+agent:
+  name: "MyAgent"
+  system_prompt: |
+    You are a helpful, honest, and curious personal AI assistant.
+    You remember our past conversations and can use tools when needed.
+    When you use a tool, explain what you are doing and why.
+
+# ------------------------------------------------------------
+# LLM backend
+# Choose one of: openai | anthropic | local
+# For local models set backend to "openai" and point base_url
+# at Ollama (http://localhost:11434/v1) or LM Studio
+# (http://localhost:1234/v1).
+# ------------------------------------------------------------
+llm:
+  backend: "openai"            # openai | anthropic
+  # Ollama example (no key needed):
+  base_url: "http://localhost:11434/v1"
+  api_key: "sk-placeholder"    # not checked by Ollama / LM Studio
+  model: "llama3"              # any model loaded in Ollama
+  temperature: 0.7
+  max_tokens: 1024
+
+  # Anthropic example (uncomment and set backend: anthropic):
+  # backend: "anthropic"
+  # api_key: "sk-ant-..."
+  # model: "claude-3-haiku-20240307"
+
+  # OpenAI cloud example (uncomment):
+  # backend: "openai"
+  # base_url: "https://api.openai.com/v1"
+  # api_key: "sk-..."
+  # model: "gpt-4o-mini"
+
+# ------------------------------------------------------------
+# Memory
+# ------------------------------------------------------------
+memory:
+  db_path: "data/memory.db"
+  max_window: 20              # turns kept in short-term window
+
+# ------------------------------------------------------------
+# Training
+# ------------------------------------------------------------
+training:
+  output_dir: "data/training"
+  default_format: "openai"    # openai | alpaca | sharegpt
+
+# ------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------
+logging:
+  level: "INFO"               # DEBUG | INFO | WARNING | ERROR
+  file: "logs/agent.log"
