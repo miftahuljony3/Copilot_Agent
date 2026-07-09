@@ -15,6 +15,7 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 Role = Literal["system", "user", "assistant"]
+DEFAULT_EXPORT_LIMIT = 10_000
 
 
 class Memory:
@@ -77,14 +78,16 @@ class Memory:
         rows.reverse()
         return rows
 
-    def export_training_pairs(self, output_path: str = "data/training/pairs.jsonl") -> int:
+    def export_training_pairs(
+        self, output_path: str = "data/training/pairs.jsonl", limit: int = DEFAULT_EXPORT_LIMIT
+    ) -> int:
         """
         Export consecutive (user, assistant) pairs from long-term memory
         as JSONL for fine-tuning.  Returns the number of pairs written.
         """
         import jsonlines  # lazy import
 
-        rows = self.get_history(limit=10_000)
+        rows = self.get_history(limit=limit)
         pairs: list[dict] = []
         for i, row in enumerate(rows):
             if row["role"] == "user" and i + 1 < len(rows):

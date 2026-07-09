@@ -1,8 +1,8 @@
 """
 agent/core.py
-Central agent loop: receives a user message, decides which tools to call
-(if any), builds a prompt with conversation history from memory, sends the
-request to the configured LLM backend, and returns the response.
+Central agent loop: receives a user message, decides which tools to call,
+builds a prompt with conversation history from memory, sends the request
+to the configured LLM backend, and returns the response.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class PersonalAgent:
         # 2. Build the messages list that will be sent to the LLM
         messages = self._build_messages()
 
-        # 3. Call the LLM (with optional tool-use loop)
+        # 3. Call the LLM
         reply = self._call_llm(messages)
 
         # 4. Persist the assistant turn
@@ -97,7 +97,7 @@ class PersonalAgent:
             temperature=llm_cfg.get("temperature", 0.7),
             max_tokens=llm_cfg.get("max_tokens", 1024),
         )
-        return response.choices[0].message.content.strip()
+        return (response.choices[0].message.content or "").strip()
 
     def _call_anthropic(self, messages: list[dict]) -> str:
         """Anthropic Claude API."""
@@ -130,6 +130,6 @@ class PersonalAgent:
         # OpenAI-compatible
         import openai
         return openai.OpenAI(
-            api_key=llm_cfg.get("api_key", "sk-placeholder"),
+            api_key=llm_cfg.get("api_key") or "not-needed",
             base_url=llm_cfg.get("base_url", "http://localhost:11434/v1"),
         )

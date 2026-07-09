@@ -122,6 +122,10 @@ class Calculator(BaseTool):
 
     def _safe_eval(self, node: ast.expr):  # type: ignore[override]
         if isinstance(node, ast.Constant):
+            if not isinstance(node.value, (int, float)):
+                raise ValueError(
+                    f"Unsupported constant type: {type(node.value).__name__}"
+                )
             return node.value
         if isinstance(node, ast.BinOp):
             op_type = type(node.op)
