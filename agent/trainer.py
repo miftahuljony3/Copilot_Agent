@@ -20,6 +20,8 @@ import logging
 import pathlib
 from typing import Literal
 
+from .memory import DEFAULT_EXPORT_LIMIT
+
 logger = logging.getLogger(__name__)
 
 Format = Literal["openai", "alpaca", "sharegpt"]
@@ -46,13 +48,14 @@ class Trainer:
     # Export
     # ------------------------------------------------------------------
 
-    def export_raw(self, limit: int = 10_000) -> pathlib.Path:
+    def export_raw(self, limit: int = DEFAULT_EXPORT_LIMIT) -> pathlib.Path:
         """
         Export raw (prompt, completion) pairs from memory to JSONL.
         Returns the path of the written file.
         """
         count = self.memory.export_training_pairs(
-            str(self.output_dir / "raw_pairs.jsonl")
+            str(self.output_dir / "raw_pairs.jsonl"),
+            limit=limit,
         )
         logger.info("Exported %d raw pairs.", count)
         return self.output_dir / "raw_pairs.jsonl"

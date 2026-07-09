@@ -16,7 +16,7 @@ agent:
 
 # ------------------------------------------------------------
 # LLM backend
-# Choose one of: openai | anthropic | local
+# Choose one of: openai | anthropic
 # For local models set backend to "openai" and point base_url
 # at Ollama (http://localhost:11434/v1) or LM Studio
 # (http://localhost:1234/v1).
@@ -25,7 +25,7 @@ llm:
   backend: "openai"            # openai | anthropic
   # Ollama example (no key needed):
   base_url: "http://localhost:11434/v1"
-  api_key: "sk-placeholder"    # not checked by Ollama / LM Studio
+  api_key: ""                  # optional for local OpenAI-compatible servers
   model: "llama3"              # any model loaded in Ollama
   temperature: 0.7
   max_tokens: 1024

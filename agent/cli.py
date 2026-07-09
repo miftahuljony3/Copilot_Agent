@@ -5,7 +5,6 @@ Command-line interface for the personal agent.
 Commands
 --------
   chat        Start an interactive chat session.
-  reset       Clear the current conversation window.
   export      Export conversation history as training data.
   stats       Show training data statistics.
   history     Print recent conversation turns from long-term memory.
@@ -39,11 +38,11 @@ def _load_config(config_path: pathlib.Path) -> dict:
     if not config_path.exists():
         console.print(
             f"[red]Config file not found: {config_path}[/red]\n"
-            "Copy config.yaml.example to config.yaml and fill in your settings."
+            "Copy or create config.yaml and fill in your settings."
         )
         sys.exit(1)
     with config_path.open(encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f) or {}
 
 
 def _build_agent(config: dict) -> tuple[PersonalAgent, Memory, Trainer]:
@@ -53,7 +52,10 @@ def _build_agent(config: dict) -> tuple[PersonalAgent, Memory, Trainer]:
     )
     tools = ToolRegistry.with_defaults()
     agent = PersonalAgent(config=config, memory=memory, tools=tools)
-    trainer = Trainer(memory=memory)
+    trainer = Trainer(
+        memory=memory,
+        output_dir=config.get("training", {}).get("output_dir", "data/training"),
+    )
     return agent, memory, trainer
 
 
@@ -115,20 +117,6 @@ def chat(ctx: click.Context) -> None:
             )
     except KeyboardInterrupt:
         console.print("\n[yellow]Session ended.[/yellow]")
-
-
-# ---------------------------------------------------------------------------
-# reset
-# ---------------------------------------------------------------------------
-
-@cli.command()
-@click.pass_context
-def reset(ctx: click.Context) -> None:
-    """Clear the in-memory conversation window."""
-    config = _load_config(ctx.obj["config_path"])
-    _agent, memory, _ = _build_agent(config)
-    memory.clear_conversation()
-    console.print("[green]Conversation window cleared.[/green]")
 
 
 # ---------------------------------------------------------------------------
