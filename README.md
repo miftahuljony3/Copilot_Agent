@@ -132,3 +132,51 @@ fine-tune pipeline.
 ## License
 
 MIT
+# Copilot Agent
+
+A collection of custom GitHub Copilot agent profiles and repository guidance.
+
+> Update this README to match the actual agents and workflows in this repository.
+
+## Contents
+
+- `.github/agents/` — specialized agent profiles.
+- `.github/copilot-instructions.md` — repository-wide guidance for Copilot.
+- `docs/agent-evaluation.md` — manual scenarios for checking agent behavior.
+
+## Getting started
+
+1. Clone or download this repository.
+2. Review the agent profiles in `.github/agents/`.
+3. Copy or adapt the profiles for your own repository if desired.
+4. Open the repository in a Copilot-compatible environment.
+5. Select a custom agent from the agent picker, if your environment supports it.
+
+Custom agent availability and supported features can vary by Copilot client and configuration. Check the documentation for the client you use.
+
+## Included agents
+
+### Repository Researcher
+
+Inspects repository files and reports evidence-backed findings. It distinguishes observed facts from assumptions and identifies information it could not verify.
+
+### Implementation Planner
+
+Turns a feature request or review findings into a prioritized implementation plan with affected files, acceptance criteria, and risks.
+
+### Code Reviewer
+
+Reviews changes for correctness, security, and maintainability. It reports findings with file and line references and does not modify files.
+
+## Customizing these agents
+
+Before using these profiles in another project:
+
+- Replace generic guidance with the project’s actual languages, build commands, and conventions.
+- Keep each agent’s responsibility focused.
+- Grant only the tools the agent needs.
+- Test agent behavior using the scenarios in `docs/agent-evaluation.md`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.
