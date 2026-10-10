@@ -21,7 +21,7 @@ import yaml
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 
 from .core import PersonalAgent
 from .memory import Memory
@@ -45,18 +45,16 @@ def _load_config(config_path: pathlib.Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def _build_agent(config: dict) -> tuple[PersonalAgent, Memory, Trainer]:
+def _build_storage(config: dict) -> tuple[Memory, Trainer]:
     memory = Memory(
         db_path=config.get("memory", {}).get("db_path", "data/memory.db"),
         max_window=config.get("memory", {}).get("max_window", 20),
     )
-    tools = ToolRegistry.with_defaults()
-    agent = PersonalAgent(config=config, memory=memory, tools=tools)
     trainer = Trainer(
         memory=memory,
         output_dir=config.get("training", {}).get("output_dir", "data/training"),
     )
-    return agent, memory, trainer
+    return memory, trainer
 
 
 @click.group()
@@ -77,12 +75,36 @@ def cli(ctx: click.Context, config: str) -> None:
 # chat
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
+@click.option("--profile", help="Named LLM profile from config.yaml")
+@click.option("--model", help="Override the selected model ID")
 @click.pass_context
-def chat(ctx: click.Context) -> None:
+def chat(ctx: click.Context, profile: str | None, model: str | None) -> None:
     """Start an interactive chat session. Type 'exit' or Ctrl-C to quit."""
     config = _load_config(ctx.obj["config_path"])
-    agent, _memory, _trainer = _build_agent(config)
+    if profile:
+        profiles = config.get("profiles", {})
+        if profile not in profiles:
+            raise click.ClickException(f"Unknown profile: {profile}")
+        config["llm"] = dict(profiles[profile])
+    if model:
+        config.setdefault("llm", {})["model"] = model
+
+    def approve(name, arguments):
+        console.print(f"Tool: {name}", markup=False)
+        console.print(str(arguments), markup=False)
+        return Confirm.ask("Allow this tool call?", default=False)
+
+    try:
+        memory, _trainer = _build_storage(config)
+        agent = PersonalAgent(
+            config, memory, ToolRegistry.with_defaults(), approve_tool=approve
+        )
+    except Exception as exc:  # noqa: BLE001 — redact SDK errors before display
+        raise click.ClickException(
+            f"Agent setup failed ({type(exc).__name__}); check configuration and environment variables"
+        ) from None
 
     agent_name = config.get("agent", {}).get("name", "Agent")
     console.print(
@@ -107,7 +129,14 @@ def chat(ctx: click.Context) -> None:
                 console.print("[yellow]Conversation reset.[/yellow]")
                 continue
 
-            reply = agent.chat(user_input)
+            try:
+                reply = agent.chat(user_input)
+            except Exception as exc:  # noqa: BLE001 — redact SDK errors before display
+                console.print(
+                    f"Request failed ({type(exc).__name__}). Check model, credentials, MCP configuration and tool limits.",
+                    markup=False,
+                )
+                continue
             console.print(
                 Panel(
                     Markdown(reply),
@@ -117,11 +146,15 @@ def chat(ctx: click.Context) -> None:
             )
     except KeyboardInterrupt:
         console.print("\n[yellow]Session ended.[/yellow]")
+    finally:
+        agent.close()
+        memory.close()
 
 
 # ---------------------------------------------------------------------------
 # export
 # ---------------------------------------------------------------------------
+
 
 @cli.command()
 @click.option(
@@ -135,7 +168,7 @@ def chat(ctx: click.Context) -> None:
 def export(ctx: click.Context, fmt: str) -> None:
     """Export conversation history as a fine-tuning dataset."""
     config = _load_config(ctx.obj["config_path"])
-    _agent, _memory, trainer = _build_agent(config)
+    _memory, trainer = _build_storage(config)
 
     system_prompt = config.get("agent", {}).get(
         "system_prompt", "You are a helpful personal AI assistant."
@@ -146,19 +179,22 @@ def export(ctx: click.Context, fmt: str) -> None:
 
     out_path = trainer.build_finetune_dataset(fmt=fmt, system_prompt=system_prompt)  # type: ignore[arg-type]
     console.print(f"[green]Fine-tune dataset ({fmt}) written to:[/green] {out_path}")
+    _memory.close()
 
 
 # ---------------------------------------------------------------------------
 # stats
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.pass_context
 def stats(ctx: click.Context) -> None:
     """Show statistics about the collected training data."""
     config = _load_config(ctx.obj["config_path"])
-    _agent, _memory, trainer = _build_agent(config)
+    _memory, trainer = _build_storage(config)
     data = trainer.stats()
+    _memory.close()
     for key, val in data.items():
         console.print(f"  [bold]{key}[/bold]: {val}")
 
@@ -167,14 +203,16 @@ def stats(ctx: click.Context) -> None:
 # history
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.option("--limit", default=20, show_default=True, help="Number of turns to show.")
 @click.pass_context
 def history(ctx: click.Context, limit: int) -> None:
     """Print recent turns from long-term memory."""
     config = _load_config(ctx.obj["config_path"])
-    _agent, memory, _ = _build_agent(config)
+    memory, _ = _build_storage(config)
     turns = memory.get_history(limit=limit)
+    memory.close()
     for turn in turns:
         role_color = "cyan" if turn["role"] == "user" else "magenta"
         console.print(
