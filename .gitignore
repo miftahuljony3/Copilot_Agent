@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local agent credentials and runtime data
+config.local.yaml
+data/*.db*
+data/notes.md
+data/training/

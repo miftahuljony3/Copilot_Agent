@@ -1,6 +1,6 @@
 # Core dependencies
-openai>=1.0.0          # LLM backend (OpenAI-compatible API, e.g. local Ollama/LM Studio)
-anthropic>=0.25.0      # Claude API (optional, swap in config)
+openai>=1.0.0,<3          # LLM backend (OpenAI-compatible API, e.g. local Ollama/LM Studio)
+anthropic>=0.25.0,<1      # Claude API (optional, swap in config)
 requests>=2.31.0       # HTTP calls for tools
 pyyaml>=6.0.1          # Config file parsing
 rich>=13.7.0           # Pretty terminal output
@@ -17,3 +17,7 @@ jsonlines>=4.0.0       # JSONL read/write for training examples
 
 # Optional: local model support
 # ollama>=0.1.8         # Uncomment if using Ollama
+
+# MCP client transports and tool argument validation
+mcp>=1.12.0,<2
+jsonschema>=4.20,<5
