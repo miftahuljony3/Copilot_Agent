@@ -1,182 +1,197 @@
-# Personal Agent
+# Personal Agent — API models + MCP
 
-A locally-hostable, self-trainable personal AI agent built in Python.
-Use it to learn how LLM agents work, accumulate conversation data, and
-progressively fine-tune your own model.
-
----
-
-## Project structure
-
-```
-Copilot_Agent/
-├── agent/
-│   ├── __init__.py      # package exports
-│   ├── core.py          # agent loop (LLM calls, tool dispatch)
-│   ├── memory.py        # short-term window + long-term SQLite store
-│   ├── tools.py         # tool framework + built-in tools
-│   ├── trainer.py       # export & convert training data
-│   └── cli.py           # Click CLI (chat / export / stats / history)
-├── data/
-│   ├── memory.db        # SQLite conversation store (auto-created)
-│   ├── notes.md         # notes saved by the note_taker tool
-│   └── training/        # exported fine-tune datasets
-├── logs/
-│   └── agent.log        # runtime log (auto-created)
-├── config.yaml          # all settings (LLM, memory, training)
-├── main.py              # CLI entry point
-├── requirements.txt     # Python dependencies
-└── README.md
-```
-
----
+A Python chat agent with SQLite conversation history, provider-native tool calling,
+and optional Model Context Protocol (MCP) tools. The repository also contains
+GitHub Copilot profiles under `.github/agents/`; those profiles are separate from
+this Python runtime and do not change Copilot's supported models.
 
 ## Quick start
 
-### 1. Install dependencies
+Requires **Python 3.10+**.
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+python main.py chat               # defaults to Ollama localhost:11434/v1, llama3
 ```
 
-### 2. Start a local model (recommended for privacy)
-
-Install [Ollama](https://ollama.com) and pull a model:
+Start Ollama and pull the configured model first, or choose a cloud profile:
 
 ```bash
-ollama pull llama3
-ollama serve          # starts the OpenAI-compatible API on :11434
+export OPENAI_API_KEY="your-key"   # PowerShell: $env:OPENAI_API_KEY="your-key"
+python main.py chat --profile openai
+python main.py chat --profile openai --model YOUR_MODEL_ID
 ```
 
-Or use [LM Studio](https://lmstudio.ai) — just start the local server and
-update `base_url` in `config.yaml`.
+Use `config.local.yaml` (gitignored) for your settings:
 
-### 3. Configure
+```bash
+cp config.yaml config.local.yaml
+python main.py --config config.local.yaml chat
+```
 
-Edit `config.yaml`:
+## Model providers
+
+| Backend | Use |
+| --- | --- |
+| `openai` | OpenAI Chat Completions and compatible APIs: Ollama, LM Studio, OpenRouter, DeepSeek, Groq, vLLM, OmniRoute |
+| `anthropic` | Native Anthropic Messages API, including tool-use/result blocks |
+| `litellm` | Optional adapters for Gemini, Azure, Bedrock and other LiteLLM-supported providers |
+
+Model IDs are configurable, not restricted to a hard-coded list. **Not every AI
+model or API is interchangeable:** this is a text/chat runtime. Tool calls require
+model **and endpoint** support. Images, audio, streaming, OpenAI Responses-only
+models, and arbitrary proprietary API formats are not implemented. An unsupported
+API needs an adapter or an OpenAI-compatible gateway.
+
+### Custom API / OmniRoute
 
 ```yaml
 llm:
-  backend: "openai"
-  base_url: "http://localhost:11434/v1"
-  model: "llama3"
+  backend: openai
+  base_url: http://localhost:20128/v1
+  api_key_env: OMNIROUTE_API_KEY
+  model: auto
+  timeout: 60
+  max_retries: 2
 ```
 
-For cloud models (OpenAI / Anthropic) see the commented examples in `config.yaml`.
+For OpenRouter use `https://openrouter.ai/api/v1` and its model ID; for LM Studio
+use `http://localhost:1234/v1`. Specify the full API base including `/v1` when
+required. If `base_url` is omitted, the native SDK default is used. A keyless local
+OpenAI-compatible service receives `not-needed` as its key. Set `api_key_env` for
+cloud services; a missing named variable fails immediately. Inline `api_key` is
+supported for backward compatibility but should not be committed.
 
-### 4. Chat
+Named `profiles` replace the entire `llm` block, avoiding accidental reuse of a
+local URL or another provider's credentials. `--model` overrides only the model.
+Optional `temperature`, `max_tokens`, and a `parameters` mapping are forwarded to
+the API. Omit options your selected model does not accept; they are not silently
+dropped. Routing, messages, tools and credentials cannot be overridden through
+`parameters`. Anthropic defaults to 1024 output tokens if not configured.
+
+### Additional providers
 
 ```bash
-python main.py chat
+pip install -r requirements-providers.txt
+export GEMINI_API_KEY="your-key"
+python main.py chat --profile gemini
 ```
 
----
+LiteLLM profiles use provider-prefixed IDs, e.g. `gemini/YOUR_MODEL_ID` or
+`bedrock/YOUR_MODEL_ID`. Native provider authentication (such as AWS credentials)
+is handled by LiteLLM. Model availability and permissions depend on your account.
+See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for provider-specific
+parameters. The native OpenAI and Anthropic paths do not require LiteLLM.
 
-## CLI reference
+## MCP tools
 
-| Command | Description |
-|---------|-------------|
-| `python main.py chat` | Interactive chat session |
-| `python main.py reset` | Clear in-memory conversation window |
-| `python main.py history` | Show recent turns from long-term memory |
-| `python main.py export` | Export raw + OpenAI fine-tune JSONL |
-| `python main.py export --fmt alpaca` | Export in Alpaca format |
-| `python main.py export --fmt sharegpt` | Export in ShareGPT format |
-| `python main.py stats` | Print training data statistics |
+The agent acts as an **MCP client**. It connects to configured servers, discovers
+their tool JSON schemas, lets the model request tool calls, validates arguments,
+and sends results back to the model. Supported transports: **stdio** and
+**Streamable HTTP**, using the MCP Python SDK 1.x. Legacy SSE transport, MCP
+resources/prompts, OAuth discovery, and exposing this agent as an MCP server are
+not implemented.
 
----
+No servers are enabled by default. Try the included trusted local demo:
 
-## Built-in tools
+```yaml
+mcp:
+  servers:
+    demo:
+      transport: stdio
+      command: python
+      args: [examples/mcp_server.py]
+      allowed_tools: [add]
+      timeout: 30
+```
 
-| Tool | Description |
-|------|-------------|
-| `calculator` | Safe arithmetic expression evaluator |
-| `note_taker` | Appends a note to `data/notes.md` |
-| `web_search` | Searches DuckDuckGo Lite (no API key needed) |
+Run from the repository root with your virtual environment active, then ask
+“Use the demo MCP add tool to add 17 and 25.” Use an absolute executable and script
+path when running from another directory. Connections are opened once per chat
+turn and closed on completion/failure; stdio servers are restarted on each turn.
+Only configure trusted commands: **connecting to a stdio server executes its
+command before any individual tool approval**. Commands are executed without a
+shell. Child processes receive the SDK's minimal environment plus `env` values
+and explicitly named `env_passthrough` variables, not every parent secret.
 
-Add your own tools by subclassing `agent.tools.BaseTool` and registering
-them in `agent/tools.py`.
+Remote example:
 
----
+```yaml
+mcp:
+  servers:
+    docs:
+      transport: streamable_http
+      url: https://your-server.example/mcp
+      bearer_token_env: MCP_ACCESS_TOKEN
+      allowed_tools: [search]
+      timeout: 30
+```
 
-## Training workflow
+Use HTTPS for remote servers. `headers` can supply non-secret custom headers.
+`enabled: false` disables a server. Omit `allowed_tools` to expose all discovered
+tools; `[]` exposes none. Names are namespaced with a deterministic suffix to
+avoid collisions. Pagination is supported. Server failures stop that turn rather
+than silently omitting requested capabilities; check server logs for details.
 
-All conversations are persisted in `data/memory.db`.  To build a fine-tune
-dataset:
+## Tool execution controls
+
+```yaml
+tools:
+  enabled: true
+  require_confirmation: true
+  max_rounds: 8
+  max_calls: 32
+  max_result_chars: 20000
+```
+
+The CLI asks permission for each call (default **No**). Library callers must
+supply `approve_tool(name, arguments)` or calls are denied. Set
+`require_confirmation: false` only for tools you intentionally trust to act
+without approval. `enabled: false` disables both built-in and MCP tools, useful
+for models without tool calling. MCP outputs are untrusted input, not authority.
+
+Built-ins: `calculator`, `note_taker` (writes `data/notes.md`), and `web_search`
+(DuckDuckGo Lite). Custom `BaseTool` subclasses should define a JSON Schema in
+`parameters`. A turn has bounded model rounds, tool calls, and result text size.
+MCP calls have timeouts; synchronous custom Python tools must implement their
+own time/resource limits. These controls are not a sandbox for untrusted code.
+
+## CLI and memory
+
+| Command | Purpose |
+| --- | --- |
+| `python main.py chat [--profile NAME] [--model ID]` | Interactive chat |
+| `/reset` inside chat | Clear the in-memory conversation window |
+| `python main.py history --limit 20` | Recent stored turns |
+| `python main.py export --fmt openai` | Export user/assistant pairs |
+| `python main.py export --fmt alpaca` | Alpaca training data |
+| `python main.py export --fmt sharegpt` | ShareGPT training data |
+| `python main.py stats` | Exported data statistics |
+
+Only successful user/final-answer pairs are persisted. Intermediate tool results
+are transient, avoiding broken tool-call pairs when the memory window is trimmed.
+SQLite stores long-term history; a new process starts a fresh short-term context.
+History/export/stats work without model credentials or MCP servers. Review exported
+data before fine-tuning; this project prepares data, it does not automatically
+train or improve model weights. Keep your local database and API keys private.
+
+## Development
 
 ```bash
-# 1. Export raw pairs
-python main.py export
-
-# 2. Review / curate data/training/raw_pairs.jsonl manually
-
-# 3. Convert to Alpaca format for fine-tuning with tools like Axolotl / Unsloth
-python main.py export --fmt alpaca
+pip install pytest
+python -m pytest -q
 ```
 
-The resulting JSONL files in `data/training/` are ready to upload to
-OpenAI fine-tuning, [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl),
-[Unsloth](https://github.com/unslothai/unsloth), or any JSONL-based
-fine-tune pipeline.
+Tests use mocked provider HTTP responses plus real local stdio and Streamable
+HTTP MCP servers; no paid API keys are required. Cloud-provider billing, model
+access and compatibility need separate smoke tests with your own credentials.
 
----
+- `agent/core.py`: bounded tool loop and memory
+- `agent/providers.py`: OpenAI, Anthropic, LiteLLM adapters
+- `agent/mcp_client.py`: MCP transports, discovery, calls, cleanup
+- `agent/tools.py`: built-in tools and schemas
+- `agent/cli.py`: profiles, model override and interactive approval
 
-## Adding a new LLM backend
-
-1. Add a new `_call_<backend>` method in `agent/core.py`.
-2. Add the backend name to the `if/elif` chain in `_call_llm()`.
-3. Add relevant keys to `config.yaml`.
-
----
-
-## License
-
-MIT
-# Copilot Agent
-
-A collection of custom GitHub Copilot agent profiles and repository guidance.
-
-> Update this README to match the actual agents and workflows in this repository.
-
-## Contents
-
-- `.github/agents/` — specialized agent profiles.
-- `.github/copilot-instructions.md` — repository-wide guidance for Copilot.
-- `docs/agent-evaluation.md` — manual scenarios for checking agent behavior.
-
-## Getting started
-
-1. Clone or download this repository.
-2. Review the agent profiles in `.github/agents/`.
-3. Copy or adapt the profiles for your own repository if desired.
-4. Open the repository in a Copilot-compatible environment.
-5. Select a custom agent from the agent picker, if your environment supports it.
-
-Custom agent availability and supported features can vary by Copilot client and configuration. Check the documentation for the client you use.
-
-## Included agents
-
-### Repository Researcher
-
-Inspects repository files and reports evidence-backed findings. It distinguishes observed facts from assumptions and identifies information it could not verify.
-
-### Implementation Planner
-
-Turns a feature request or review findings into a prioritized implementation plan with affected files, acceptance criteria, and risks.
-
-### Code Reviewer
-
-Reviews changes for correctness, security, and maintainability. It reports findings with file and line references and does not modify files.
-
-## Customizing these agents
-
-Before using these profiles in another project:
-
-- Replace generic guidance with the project’s actual languages, build commands, and conventions.
-- Keep each agent’s responsibility focused.
-- Grant only the tools the agent needs.
-- Test agent behavior using the scenarios in `docs/agent-evaluation.md`.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.
+MIT license.

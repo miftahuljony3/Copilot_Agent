@@ -1,0 +1,3 @@
+# Optional provider adapters (Gemini, Bedrock, Azure, etc.)
+-r requirements.txt
+litellm>=1.60,<2

@@ -145,11 +145,15 @@ class Memory:
                 "session_id": self._session_id(),
                 "role": role,
                 "content": content,
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
         )
+
+    def close(self) -> None:
+        """Release the SQLite connection."""
+        self._db.conn.close()
 
     @staticmethod
     def _session_id() -> str:
         """Return the ISO-date string used as a session identifier."""
-        return datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")

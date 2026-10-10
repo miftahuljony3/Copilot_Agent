@@ -2,8 +2,8 @@
 agent/tools.py
 A lightweight tool-calling framework.
 
-Define tools by subclassing BaseTool and decorating them with @ToolRegistry.register,
-or register callables directly via ToolRegistry.register_function().
+Define tools by subclassing BaseTool with a parameters JSON schema and
+register instances using ToolRegistry.register().
 
 Built-in tools
 --------------
@@ -19,7 +19,7 @@ import logging
 import operator
 import pathlib
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,18 @@ logger = logging.getLogger(__name__)
 # Base class
 # ---------------------------------------------------------------------------
 
+
 class BaseTool(ABC):
     """Abstract base class every tool must implement."""
 
-    name: str = ""          # unique snake_case identifier
-    description: str = ""   # one-sentence description shown to the LLM
+    name: str = ""  # unique snake_case identifier
+    description: str = ""  # one-sentence description shown to the LLM
+
+    parameters: ClassVar[dict] = {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }
 
     @abstractmethod
     def run(self, **kwargs) -> str:
@@ -42,6 +49,7 @@ class BaseTool(ABC):
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
+
 
 class ToolRegistry:
     """
@@ -59,6 +67,8 @@ class ToolRegistry:
 
     def register(self, tool: BaseTool) -> None:
         """Add a tool to the registry."""
+        if tool.name in self._tools:
+            raise ValueError(f"Duplicate tool name: {tool.name}")
         self._tools[tool.name] = tool
         logger.debug("Tool registered: %s", tool.name)
 
@@ -69,8 +79,22 @@ class ToolRegistry:
         try:
             return self._tools[name].run(**kwargs)
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Tool '%s' raised an exception", name)
-            return f"[ToolError] {name} failed: {exc}"
+            logger.warning("Tool %s failed (%s)", name, type(exc).__name__)
+            return f"[ToolError] {name} failed: {type(exc).__name__}"
+
+    def schemas(self) -> list[dict]:
+        """JSON schemas for provider-native function calling."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                },
+            }
+            for t in self._tools.values()
+        ]
 
     def list_names(self) -> list[str]:
         return list(self._tools.keys())
@@ -83,7 +107,7 @@ class ToolRegistry:
         return "\n".join(lines)
 
     @classmethod
-    def with_defaults(cls) -> "ToolRegistry":
+    def with_defaults(cls) -> ToolRegistry:
         """Return a registry pre-loaded with the built-in tools."""
         reg = cls()
         reg.register(Calculator())
@@ -113,9 +137,21 @@ class Calculator(BaseTool):
     name = "calculator"
     description = "Evaluate a safe arithmetic expression, e.g. '2 + 3 * 4'. Returns the numeric result."
 
-    def run(self, expression: str = "") -> str:  # noqa: D102
+    parameters: ClassVar[dict] = {
+        "type": "object",
+        "properties": {"expression": {"type": "string"}},
+        "required": ["expression"],
+        "additionalProperties": False,
+    }
+
+    def run(self, expression: str = "") -> str:
         try:
-            result = self._safe_eval(ast.parse(expression, mode="eval").body)
+            if len(expression) > 500:
+                raise ValueError("Expression is too long")
+            tree = ast.parse(expression, mode="eval")
+            if sum(1 for _ in ast.walk(tree)) > 100:
+                raise ValueError("Expression is too complex")
+            result = self._safe_eval(tree.body)
             return str(result)
         except Exception as exc:  # noqa: BLE001
             return f"[CalculatorError] {exc}"
@@ -123,15 +159,23 @@ class Calculator(BaseTool):
     def _safe_eval(self, node: ast.expr):  # type: ignore[override]
         if isinstance(node, ast.Constant):
             if not isinstance(node.value, (int, float)):
-                raise ValueError(
+                raise TypeError(
                     f"Unsupported constant type: {type(node.value).__name__}"
                 )
+            if abs(node.value) > 1e100:
+                raise ValueError("Number is too large")
             return node.value
         if isinstance(node, ast.BinOp):
             op_type = type(node.op)
             if op_type not in _SAFE_OPS:
                 raise ValueError(f"Unsupported operator: {op_type.__name__}")
-            return _SAFE_OPS[op_type](self._safe_eval(node.left), self._safe_eval(node.right))
+            left, right = self._safe_eval(node.left), self._safe_eval(node.right)
+            if op_type is ast.Pow and abs(right) > 100:
+                raise ValueError("Exponent is too large")
+            result = _SAFE_OPS[op_type](left, right)
+            if isinstance(result, complex) or abs(result) > 1e100:
+                raise ValueError("Result is too large or complex")
+            return result
         if isinstance(node, ast.UnaryOp):
             op_type = type(node.op)
             if op_type not in _SAFE_OPS:
@@ -146,11 +190,21 @@ class NoteTaker(BaseTool):
     name = "note_taker"
     description = "Save an important note or piece of information to data/notes.md for later review."
 
-    def run(self, note: str = "") -> str:  # noqa: D102
+    parameters: ClassVar[dict] = {
+        "type": "object",
+        "properties": {"note": {"type": "string"}},
+        "required": ["note"],
+        "additionalProperties": False,
+    }
+
+    def run(self, note: str = "") -> str:
         notes_path = pathlib.Path("data/notes.md")
         notes_path.parent.mkdir(parents=True, exist_ok=True)
         import datetime
-        timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
         with notes_path.open("a", encoding="utf-8") as f:
             f.write(f"\n---\n**{timestamp}**\n{note}\n")
         return f"Note saved to {notes_path}."
@@ -160,20 +214,32 @@ class WebSearch(BaseTool):
     """Perform a simple web search using the DuckDuckGo Lite HTML page."""
 
     name = "web_search"
-    description = "Search the web for a query and return a short summary of the top results."
+    description = (
+        "Search the web for a query and return a short summary of the top results."
+    )
 
-    def run(self, query: str = "") -> str:  # noqa: D102
+    parameters: ClassVar[dict] = {
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+        "additionalProperties": False,
+    }
+
+    def run(self, query: str = "") -> str:
         try:
             import urllib.parse
             import urllib.request
 
-            url = f"https://lite.duckduckgo.com/lite/?q={urllib.parse.quote_plus(query)}"
+            url = (
+                f"https://lite.duckduckgo.com/lite/?q={urllib.parse.quote_plus(query)}"
+            )
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 html = resp.read().decode("utf-8", errors="ignore")
 
             # Strip HTML tags with a minimal approach (no third-party deps)
             import re
+
             text = re.sub(r"<[^>]+>", " ", html)
             text = re.sub(r"\s+", " ", text).strip()
             # Return first 800 chars as a snippet

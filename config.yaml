@@ -32,13 +32,13 @@ llm:
 
   # Anthropic example (uncomment and set backend: anthropic):
   # backend: "anthropic"
-  # api_key: "sk-ant-..."
+  # api_key_env: "ANTHROPIC_API_KEY"
   # model: "claude-3-haiku-20240307"
 
   # OpenAI cloud example (uncomment):
   # backend: "openai"
   # base_url: "https://api.openai.com/v1"
-  # api_key: "sk-..."
+  # api_key_env: "OPENAI_API_KEY"
   # model: "gpt-4o-mini"
 
 # ------------------------------------------------------------
@@ -61,3 +61,50 @@ training:
 logging:
   level: "INFO"               # DEBUG | INFO | WARNING | ERROR
   file: "logs/agent.log"
+
+# Omit temperature/max_tokens for models that reject those parameters.
+# Named profiles replace the entire llm block (no local URL/key leakage).
+profiles:
+  openai:
+    backend: openai
+    model: gpt-4o-mini
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+  anthropic:
+    backend: anthropic
+    model: claude-sonnet-4-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 2048
+  gemini:
+    backend: litellm
+    model: gemini/gemini-2.5-flash
+    api_key_env: GEMINI_API_KEY
+  omniroute:
+    backend: openai
+    model: auto
+    base_url: http://localhost:20128/v1
+    api_key_env: OMNIROUTE_API_KEY
+
+tools:
+  enabled: true
+  require_confirmation: true
+  max_rounds: 8
+  max_calls: 32
+  max_result_chars: 20000
+
+# Only configure trusted servers: stdio commands execute when a turn starts.
+mcp:
+  servers: {}
+  # servers:
+  #   demo:
+  #     transport: stdio
+  #     command: python
+  #     args: [examples/mcp_server.py]
+  #     allowed_tools: [add]
+  #     timeout: 30
+  #   remote:
+  #     transport: streamable_http
+  #     url: https://your-server.example/mcp
+  #     bearer_token_env: MCP_ACCESS_TOKEN
+  #     allowed_tools: [search]
+  #     timeout: 30
