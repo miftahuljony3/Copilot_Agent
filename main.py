@@ -23,6 +23,17 @@ import yaml
 from agent.cli import cli
 
 
+def _config_path_from_argv(args: list[str] | None = None) -> pathlib.Path:
+    """Return Click's global --config value before logging is initialized."""
+    args = sys.argv[1:] if args is None else args
+    for index, argument in enumerate(args):
+        if argument == "--config" and index + 1 < len(args):
+            return pathlib.Path(args[index + 1])
+        if argument.startswith("--config="):
+            return pathlib.Path(argument.partition("=")[2])
+    return pathlib.Path("config.yaml")
+
+
 def _configure_logging(config_path: pathlib.Path = pathlib.Path("config.yaml")) -> None:
     """Read logging settings from config and apply them."""
     level = logging.INFO
@@ -48,5 +59,5 @@ def _configure_logging(config_path: pathlib.Path = pathlib.Path("config.yaml")) 
 
 
 if __name__ == "__main__":
-    _configure_logging()
+    _configure_logging(_config_path_from_argv())
     cli(obj={})
