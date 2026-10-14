@@ -1,22 +1,15 @@
 # Core dependencies
 openai>=1.0.0,<3          # LLM backend (OpenAI-compatible API, e.g. local Ollama/LM Studio)
 anthropic>=0.25.0,<1      # Claude API (optional, swap in config)
-requests>=2.31.0       # HTTP calls for tools
 pyyaml>=6.0.1          # Config file parsing
-rich>=13.7.0           # Pretty terminal output
+rich>=13.7.0           # Pretty terminal output (bundles colour support)
 click>=8.1.7           # CLI framework
-colorama>=0.4.6        # Cross-platform terminal colours
 
 # Memory / persistence
 sqlite-utils>=3.35.1   # Lightweight local database for conversation history
-tiktoken>=0.7.0        # Token counting
 
 # Training utilities
-datasets>=2.18.0       # HuggingFace datasets (for curating training data)
 jsonlines>=4.0.0       # JSONL read/write for training examples
-
-# Optional: local model support
-# ollama>=0.1.8         # Uncomment if using Ollama
 
 # MCP client transports and tool argument validation
 mcp>=1.12.0,<2

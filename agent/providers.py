@@ -166,6 +166,6 @@ class Provider:
             result["tool_calls"] = calls
         return result
 
-    def close(self):
+    def close(self) -> None:
         if self.client is not None:
             self.client.close()

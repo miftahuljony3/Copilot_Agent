@@ -101,7 +101,7 @@ def chat(ctx: click.Context, profile: str | None, model: str | None) -> None:
         agent = PersonalAgent(
             config, memory, ToolRegistry.with_defaults(), approve_tool=approve
         )
-    except Exception as exc:  # noqa: BLE001 — redact SDK errors before display
+    except Exception as exc:
         raise click.ClickException(
             f"Agent setup failed ({type(exc).__name__}); check configuration and environment variables"
         ) from None
@@ -131,7 +131,7 @@ def chat(ctx: click.Context, profile: str | None, model: str | None) -> None:
 
             try:
                 reply = agent.chat(user_input)
-            except Exception as exc:  # noqa: BLE001 — redact SDK errors before display
+            except Exception as exc:
                 console.print(
                     f"Request failed ({type(exc).__name__}). Check model, credentials, MCP configuration and tool limits.",
                     markup=False,

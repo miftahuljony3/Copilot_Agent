@@ -8,4 +8,4 @@ from .memory import Memory
 from .tools import ToolRegistry
 from .trainer import Trainer
 
-__all__ = ["PersonalAgent", "Memory", "ToolRegistry", "Trainer"]
+__all__ = ["Memory", "PersonalAgent", "ToolRegistry", "Trainer"]

@@ -39,7 +39,9 @@ class Trainer:
         Directory where dataset files will be written.
     """
 
-    def __init__(self, memory, output_dir: str | pathlib.Path = "data/training") -> None:
+    def __init__(
+        self, memory, output_dir: str | pathlib.Path = "data/training"
+    ) -> None:
         self.memory = memory
         self.output_dir = pathlib.Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -91,7 +93,10 @@ class Trainer:
         }[fmt]
 
         written = 0
-        with source.open(encoding="utf-8") as fin, out_path.open("w", encoding="utf-8") as fout:
+        with (
+            source.open(encoding="utf-8") as fin,
+            out_path.open("w", encoding="utf-8") as fout,
+        ):
             for line in fin:
                 line = line.strip()
                 if not line:
@@ -163,5 +168,7 @@ class Trainer:
         return {
             "total_pairs": total,
             "avg_prompt_chars": round(total_prompt_len / total, 1) if total else 0,
-            "avg_completion_chars": round(total_completion_len / total, 1) if total else 0,
+            "avg_completion_chars": round(total_completion_len / total, 1)
+            if total
+            else 0,
         }

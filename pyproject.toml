@@ -1,0 +1,36 @@
+[project]
+name = "personal-agent"
+version = "0.1.0"
+description = "A Python chat agent with SQLite history, provider-native tool calling, and MCP tools."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+# A pragmatic, non-noisy rule set: pyflakes, pycodestyle, isort, bugbear,
+# comprehensions, pyupgrade, and ruff-specific checks.
+select = ["E", "F", "I", "B", "C4", "UP", "RUF"]
+ignore = [
+    "E501",  # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use intentional shadowing (e.g. a `call` helper) and dynamic imports.
+"tests/*" = ["B008", "B011"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+# Third-party SDKs (openai, anthropic, mcp, litellm, sqlite_utils, ...) ship
+# varying type coverage; ignore missing stubs rather than vendoring them.
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true

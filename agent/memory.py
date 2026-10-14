@@ -7,7 +7,6 @@ persistent storage (SQLite via sqlite-utils).
 from __future__ import annotations
 
 import datetime
-import json
 import logging
 import pathlib
 from typing import Literal
@@ -52,7 +51,7 @@ class Memory:
         self._conversation.append(turn)
         # Trim window
         if len(self._conversation) > self.max_window:
-            self._conversation = self._conversation[-self.max_window:]
+            self._conversation = self._conversation[-self.max_window :]
         self._persist(role, content)
 
     def get_conversation(self) -> list[dict]:
@@ -70,16 +69,14 @@ class Memory:
 
     def get_history(self, limit: int = 100) -> list[dict]:
         """Return the *limit* most recent turns from the long-term store."""
-        rows = list(
-            self._db["turns"].rows_where(
-                order_by="id desc", limit=limit
-            )
-        )
+        rows = list(self._db["turns"].rows_where(order_by="id desc", limit=limit))
         rows.reverse()
         return rows
 
     def export_training_pairs(
-        self, output_path: str = "data/training/pairs.jsonl", limit: int = DEFAULT_EXPORT_LIMIT
+        self,
+        output_path: str = "data/training/pairs.jsonl",
+        limit: int = DEFAULT_EXPORT_LIMIT,
     ) -> int:
         """
         Export consecutive (user, assistant) pairs from long-term memory
