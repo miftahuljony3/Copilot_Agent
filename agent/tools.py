@@ -19,7 +19,7 @@ import logging
 import operator
 import pathlib
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class BaseTool(ABC):
     }
 
     @abstractmethod
-    def run(self, **kwargs) -> str:
+    def run(self, **kwargs: Any) -> str:
         """Execute the tool and return a string result."""
 
 
@@ -78,7 +78,7 @@ class ToolRegistry:
             return f"[ToolError] Unknown tool: '{name}'. Available: {self.list_names()}"
         try:
             return self._tools[name].run(**kwargs)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Tool %s failed (%s)", name, type(exc).__name__)
             return f"[ToolError] {name} failed: {type(exc).__name__}"
 
@@ -144,7 +144,7 @@ class Calculator(BaseTool):
         "additionalProperties": False,
     }
 
-    def run(self, expression: str = "") -> str:
+    def run(self, expression: str = "", **_: Any) -> str:
         try:
             if len(expression) > 500:
                 raise ValueError("Expression is too long")
@@ -153,10 +153,10 @@ class Calculator(BaseTool):
                 raise ValueError("Expression is too complex")
             result = self._safe_eval(tree.body)
             return str(result)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return f"[CalculatorError] {exc}"
 
-    def _safe_eval(self, node: ast.expr):  # type: ignore[override]
+    def _safe_eval(self, node: ast.expr) -> float:
         if isinstance(node, ast.Constant):
             if not isinstance(node.value, (int, float)):
                 raise TypeError(
@@ -166,7 +166,7 @@ class Calculator(BaseTool):
                 raise ValueError("Number is too large")
             return node.value
         if isinstance(node, ast.BinOp):
-            op_type = type(node.op)
+            op_type: type = type(node.op)
             if op_type not in _SAFE_OPS:
                 raise ValueError(f"Unsupported operator: {op_type.__name__}")
             left, right = self._safe_eval(node.left), self._safe_eval(node.right)
@@ -197,7 +197,7 @@ class NoteTaker(BaseTool):
         "additionalProperties": False,
     }
 
-    def run(self, note: str = "") -> str:
+    def run(self, note: str = "", **_: Any) -> str:
         notes_path = pathlib.Path("data/notes.md")
         notes_path.parent.mkdir(parents=True, exist_ok=True)
         import datetime
@@ -225,7 +225,7 @@ class WebSearch(BaseTool):
         "additionalProperties": False,
     }
 
-    def run(self, query: str = "") -> str:
+    def run(self, query: str = "", **_: Any) -> str:
         try:
             import urllib.parse
             import urllib.request
@@ -244,5 +244,5 @@ class WebSearch(BaseTool):
             text = re.sub(r"\s+", " ", text).strip()
             # Return first 800 chars as a snippet
             return text[:800] if text else "No results found."
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return f"[WebSearchError] {exc}"

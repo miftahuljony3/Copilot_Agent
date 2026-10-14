@@ -94,7 +94,7 @@ class PersonalAgent:
                             result = await asyncio.to_thread(
                                 self.tools.call, name, **args
                             )
-                    except Exception as exc:  # noqa: BLE001 — isolate untrusted tool failures
+                    except Exception as exc:
                         # Exceptions may include provider URLs, headers, or secrets.
                         result = f"[ToolError] {type(exc).__name__}; check arguments and server configuration."
                     if len(result) > max_chars:
@@ -104,8 +104,8 @@ class PersonalAgent:
                     )
         raise RuntimeError("Tool round limit reached; narrow your request")
 
-    def reset(self):
+    def reset(self) -> None:
         self.memory.clear_conversation()
 
-    def close(self):
+    def close(self) -> None:
         self.provider.close()

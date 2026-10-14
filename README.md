@@ -180,9 +180,15 @@ train or improve model weights. Keep your local database and API keys private.
 ## Development
 
 ```bash
-pip install pytest
-python -m pytest -q
+pip install pytest ruff mypy
+python -m pytest -q          # tests
+ruff check .                 # lint
+ruff format --check .        # formatting
+mypy agent main.py           # type check
 ```
+
+The same quality gates run in CI (`.github/workflows/tests.yml`) on Python 3.10
+and 3.12. Ruff and mypy are configured in `pyproject.toml`.
 
 Tests use mocked provider HTTP responses plus real local stdio and Streamable
 HTTP MCP servers; no paid API keys are required. Cloud-provider billing, model

@@ -1,10 +1,26 @@
-name: Python tests
+name: CI
 on:
   push:
   pull_request:
 permissions:
   contents: read
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install ruff mypy
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+      - name: Mypy type check
+        run: mypy agent main.py
+
   test:
     runs-on: ubuntu-latest
     strategy:
