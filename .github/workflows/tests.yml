@@ -19,7 +19,7 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
       - name: Mypy type check
-        run: mypy agent main.py
+        run: mypy agent main.py web_main.py
 
   test:
     runs-on: ubuntu-latest

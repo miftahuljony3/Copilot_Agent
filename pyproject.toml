@@ -1,7 +1,7 @@
 [project]
 name = "personal-agent"
-version = "0.1.0"
-description = "A Python chat agent with SQLite history, provider-native tool calling, and MCP tools."
+version = "0.2.0"
+description = "A Python chat agent with CLI/web interfaces, SQLite history, provider-native tool calling, and MCP tools."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

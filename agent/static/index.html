@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Personal Agent</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #07111f; color: #e8eef7; }
+    main { width: min(900px, 100%); min-height: 100vh; margin: auto; display: grid; grid-template-rows: auto 1fr auto; padding: 18px; gap: 14px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    h1 { margin: 0; font-size: 1.25rem; }
+    #status { color: #8ca0ba; font-size: .9rem; }
+    #messages { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 8px 0; }
+    .message { max-width: 84%; padding: 12px 14px; border-radius: 16px; white-space: pre-wrap; line-height: 1.45; overflow-wrap: anywhere; }
+    .user { align-self: flex-end; background: #2563eb; }
+    .agent { align-self: flex-start; background: #17243a; border: 1px solid #253653; }
+    .error { align-self: center; color: #fecaca; background: #451a1a; }
+    form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    textarea, input { width: 100%; color: inherit; background: #101c2e; border: 1px solid #30425f; border-radius: 12px; padding: 12px; font: inherit; }
+    textarea { resize: none; min-height: 50px; max-height: 160px; }
+    button { color: white; background: #2563eb; border: 0; border-radius: 12px; padding: 0 18px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .secondary { background: #263750; padding: 8px 12px; }
+    dialog { width: min(430px, calc(100% - 32px)); color: inherit; background: #101c2e; border: 1px solid #30425f; border-radius: 16px; padding: 22px; }
+    dialog::backdrop { background: #020617dc; }
+    dialog form { display: flex; flex-direction: column; }
+    small { color: #9fb0c7; }
+  </style>
+</head>
+<body>
+  <main>
+    <header><div><h1 id="name">Personal Agent</h1><div id="status">Checking service…</div></div><button id="reset" class="secondary">Reset chat</button></header>
+    <section id="messages" aria-live="polite"><div class="message agent">Hello. Enter your access token, then send me a message.</div></section>
+    <form id="chat"><textarea id="message" maxlength="8000" placeholder="Message your agent…" required></textarea><button id="send">Send</button></form>
+  </main>
+  <dialog id="login"><form id="login-form"><h2>Access token</h2><small>This token stays in this browser tab only.</small><input id="token" type="password" minlength="24" autocomplete="current-password" required><button type="submit">Continue</button></form></dialog>
+  <script>
+    const messages = document.querySelector('#messages');
+    const chat = document.querySelector('#chat');
+    const input = document.querySelector('#message');
+    const send = document.querySelector('#send');
+    const login = document.querySelector('#login');
+    let token = sessionStorage.getItem('agentToken') || '';
+    const add = (text, kind) => { const node = document.createElement('div'); node.className = `message ${kind}`; node.textContent = text; messages.append(node); messages.scrollTop = messages.scrollHeight; };
+    const headers = () => ({'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`});
+    if (!token) login.showModal();
+    document.querySelector('#login-form').addEventListener('submit', event => { event.preventDefault(); token = document.querySelector('#token').value; sessionStorage.setItem('agentToken', token); login.close(); input.focus(); });
+    fetch('healthz').then(r => r.json()).then(data => { document.querySelector('#name').textContent = data.agent; document.querySelector('#status').textContent = `${data.model} · online`; }).catch(() => document.querySelector('#status').textContent = 'Service unavailable');
+    chat.addEventListener('submit', async event => {
+      event.preventDefault(); const message = input.value.trim(); if (!message) return;
+      add(message, 'user'); input.value = ''; send.disabled = true; document.querySelector('#status').textContent = 'Thinking…';
+      try { const response = await fetch('api/chat', {method: 'POST', headers: headers(), body: JSON.stringify({message})}); const data = await response.json(); if (response.status === 401) { sessionStorage.removeItem('agentToken'); token = ''; login.showModal(); throw new Error('Access token rejected'); } if (!response.ok) throw new Error(data.detail || 'Request failed'); add(data.reply, 'agent'); }
+      catch (error) { add(error.message, 'error'); }
+      finally { send.disabled = false; document.querySelector('#status').textContent = 'Online'; input.focus(); }
+    });
+    input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); chat.requestSubmit(); } });
+    document.querySelector('#reset').addEventListener('click', async () => { const response = await fetch('api/reset', {method: 'POST', headers: headers()}); if (response.ok) { messages.replaceChildren(); add('Conversation context reset.', 'agent'); } });
+  </script>
+</body>
+</html>

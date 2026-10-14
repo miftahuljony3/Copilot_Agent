@@ -1,0 +1,36 @@
+agent:
+  name: "Copilot Agent"
+  system_prompt: |
+    You are a helpful, honest personal AI assistant. Give clear, concise answers.
+    Use tools when they materially improve the answer, and never claim a tool
+    succeeded unless its result confirms success.
+
+llm:
+  backend: openai
+  base_url: http://127.0.0.1:11434/v1
+  model: qwen3:4b-instruct
+  temperature: 0.3
+  max_tokens: 1024
+  timeout: 180
+  max_retries: 1
+
+memory:
+  db_path: /var/lib/copilot-agent/memory.db
+  max_window: 20
+
+training:
+  output_dir: /var/lib/copilot-agent/training
+  default_format: openai
+
+tools:
+  enabled: true
+  require_confirmation: false
+  max_rounds: 6
+  max_calls: 12
+  max_result_chars: 12000
+
+mcp:
+  servers: {}
+
+web:
+  request_timeout: 240

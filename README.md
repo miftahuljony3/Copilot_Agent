@@ -1,7 +1,8 @@
 # Personal Agent — API models + MCP
 
-A Python chat agent with SQLite conversation history, provider-native tool calling,
-and optional Model Context Protocol (MCP) tools. The repository also contains
+A Python chat agent with authenticated web and terminal interfaces, SQLite
+conversation history, provider-native tool calling, and optional Model Context
+Protocol (MCP) tools. The repository also contains
 GitHub Copilot profiles under `.github/agents/`; those profiles are separate from
 this Python runtime and do not change Copilot's supported models.
 
@@ -15,6 +16,32 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python main.py chat               # defaults to Ollama localhost:11434/v1, llama3
 ```
+
+## Web interface
+
+The FastAPI service exposes a browser UI, authenticated JSON chat API, health
+check, history, and conversation reset. Set a strong token before starting it:
+
+```bash
+export AGENT_WEB_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export AGENT_CONFIG="config.local.yaml"  # optional; defaults to config.yaml
+python web_main.py
+```
+
+Open `http://127.0.0.1:8000/` and enter the token. The API uses
+`Authorization: Bearer <token>`:
+
+```bash
+curl http://127.0.0.1:8000/healthz
+curl -H "Authorization: Bearer $AGENT_WEB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Hello"}' http://127.0.0.1:8000/api/chat
+```
+
+For an internet-facing deployment, keep Uvicorn on loopback and publish it
+through a TLS-enabled reverse proxy. `AGENT_WEB_TOKEN` is mandatory and must be
+at least 24 characters. Configure `web.request_timeout` to change the default
+180-second model timeout.
 
 Start Ollama and pull the configured model first, or choose a cloud profile:
 

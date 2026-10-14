@@ -1,0 +1,26 @@
+[Unit]
+Description=Copilot Personal Agent web service
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=copilot-agent
+Group=copilot-agent
+WorkingDirectory=/opt/copilot-agent
+EnvironmentFile=/etc/copilot-agent.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/copilot-agent/.venv/bin/uvicorn agent.web:create_app --factory --host 127.0.0.1 --port 8010 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/copilot-agent /opt/copilot-agent/data
+
+[Install]
+WantedBy=multi-user.target

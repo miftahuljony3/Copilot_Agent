@@ -1,0 +1,6 @@
+[Unit]
+Description=Renew short-lived Let's Encrypt IP certificates
+
+[Service]
+Type=oneshot
+ExecStart=/opt/certbot-ip/bin/certbot renew --quiet --deploy-hook "/bin/systemctl reload nginx"

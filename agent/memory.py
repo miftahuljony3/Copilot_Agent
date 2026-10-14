@@ -123,7 +123,8 @@ class Memory:
         path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite_utils.Database(path)
         if "turns" not in db.table_names():
-            db["turns"].create(
+            db.create_table(
+                "turns",
                 {
                     "id": int,
                     "session_id": str,

@@ -4,6 +4,8 @@ anthropic>=0.25.0,<1      # Claude API (optional, swap in config)
 pyyaml>=6.0.1          # Config file parsing
 rich>=13.7.0           # Pretty terminal output (bundles colour support)
 click>=8.1.7           # CLI framework
+fastapi>=0.115,<1      # Authenticated web/API interface
+uvicorn>=0.30,<1       # Production ASGI server
 
 # Memory / persistence
 sqlite-utils>=3.35.1   # Lightweight local database for conversation history
